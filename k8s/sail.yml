@@ -1,0 +1,134 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sail
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sail-spark-server
+  namespace: sail
+  labels:
+    app.kubernetes.io/name: sail
+    app.kubernetes.io/component: spark-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sail
+      app.kubernetes.io/component: spark-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sail
+        app.kubernetes.io/component: spark-server
+    spec:
+      serviceAccountName: sail-user
+      containers:
+        - name: server
+          image: sail:latest
+          command: [ "sail" ]
+          args: [ "spark", "server", "--ip", "0.0.0.0", "--port", "50051" ]
+          ports:
+            - containerPort: 50051
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: RUST_LOG
+              value: info
+            - name: SAIL_MODE
+              value: "kubernetes-cluster"
+            - name: SAIL_CLUSTER__DRIVER_LISTEN_HOST
+              value: "0.0.0.0"
+            - name: SAIL_CLUSTER__DRIVER_EXTERNAL_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: SAIL_KUBERNETES__IMAGE
+              value: sail:latest
+            - name: SAIL_KUBERNETES__NAMESPACE
+              value: sail
+            - name: SAIL_KUBERNETES__DRIVER_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: SAIL_KUBERNETES__WORKER_SERVICE_ACCOUNT_NAME
+              value: sail-user
+            - name: AWS_ACCESS_KEY_ID
+              value: "rustfsadmin"
+            - name: AWS_SECRET_ACCESS_KEY
+              value: "rustfsadmin"
+            - name: AWS_ENDPOINT_URL
+              value: "http://172.23.0.3:9000"
+            - name: AWS_REGION
+              value: "us-east-1"
+            - name: AWS_ALLOW_HTTP
+              value: "true"
+            - name: AWS_S3_FORCE_PATH_STYLE
+              value: "true"
+            - name: AWS_VIRTUAL_HOSTED_STYLE_REQUEST
+              value: "false"
+            - name: OPENLINEAGE__TRANSPORT__TYPE
+              value: "http"
+            - name: OPENLINEAGE__TRANSPORT__URL
+              value: "http://172.23.0.4:5000"
+            - name: OPENLINEAGE__NAMESPACE
+              value: "sail_cluster"
+            - name: SAIL_KUBERNETES__WORKER_POD_TEMPLATE
+              value: '{"spec":{"containers":[{"name":"worker","env":[{"name":"AWS_ACCESS_KEY_ID","value":"rustfsadmin"},{"name":"AWS_SECRET_ACCESS_KEY","value":"rustfsadmin"},{"name":"AWS_ENDPOINT_URL","value":"http://172.23.0.3:9000"},{"name":"AWS_REGION","value":"us-east-1"},{"name":"AWS_ALLOW_HTTP","value":"true"},{"name":"AWS_S3_FORCE_PATH_STYLE","value":"true"},{"name":"AWS_VIRTUAL_HOSTED_STYLE_REQUEST","value":"false"},{"name":"OPENLINEAGE__TRANSPORT__TYPE","value":"http"},{"name":"OPENLINEAGE__TRANSPORT__URL","value":"http://172.23.0.4:5000"},{"name":"OPENLINEAGE__NAMESPACE","value":"sail_cluster"}]}]}}'
+          volumeMounts:
+            - name: aws-creds
+              mountPath: /root/.aws
+              readOnly: true
+      volumes:
+        - name: aws-creds
+          secret:
+            secretName: aws-creds
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sail-spark-server
+  namespace: sail
+  labels:
+    app.kubernetes.io/name: sail
+    app.kubernetes.io/component: spark-server
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: sail
+    app.kubernetes.io/component: spark-server
+  ports:
+    - protocol: TCP
+      port: 50051
+      targetPort: 50051
+      nodePort: 30051
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: sail-spark-server
+  namespace: sail
+rules:
+  - apiGroups: [ "" ]
+    resources: [ "pods" ]
+    verbs: [ "*" ]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sail-user
+  namespace: sail
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: sail-spark-server
+  namespace: sail
+subjects:
+  - kind: ServiceAccount
+    name: sail-user
+    namespace: sail
+roleRef:
+  kind: Role
+  name: sail-spark-server
+  apiGroup: rbac.authorization.k8s.io

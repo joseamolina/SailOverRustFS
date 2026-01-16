@@ -1,0 +1,14 @@
+services:
+  rustsf:
+    security_opt:
+      - "no-new-privileges:true"
+    image: rustfs/rustfs:latest
+    container_name: rustsf
+    volumes:
+      - ~/data:/dat
+      - ~/logs:/logs
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - RUSTSF_LOG_LEVEL=info
