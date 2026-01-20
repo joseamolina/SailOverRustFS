@@ -94,3 +94,38 @@ async fn connect_containers() -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
+
+
+async fn sync_manifests() -> Result<(), Box<dyn Error>> {
+    let docker = Docker::connect_with_local_defaults()?;
+    let network_name = "kind";
+    let container_name = "rustsf";
+
+    let container = docker.inspect_container(container_name, None).await?;
+    let ip = container.network_settings
+        .and_then(|ns| ns.networks)
+        .and_then(|nets| nets.get(network_name).cloned())
+        .and_then(|endpoint| endpoint.ip_address);
+
+    if let Some(ip_addr) = ip {
+        println!("Detected RustFS IP: {}", ip_addr);
+        println!("Updating k8s/sail.yml...");
+
+        let manifest_path = "../k8s/sail.yml";
+        let content = std::fs::read_to_string(manifest_path)?;
+
+        // Simple string replacement for now, as YAML parsing can be complex for multi-document files
+        // and we want to preserve comments/structure.
+        // We look for patterns like: value: "http://172.23.0.3:9000"
+        let re_endpoint = Regex::new(r#"http://\d+\.\d+\.\d+\.\d+:9000"#)?;
+        let new_endpoint = format!("http://{}:9000", ip_addr);
+        let updated_content = re_endpoint.replace_all(&content, new_endpoint.as_str());
+
+        std::fs::write(manifest_path, updated_content.into_owned())?;
+        println!("Manifest updated successfully.");
+    } else {
+        println!("Error: Could not find IP for '{}' in network '{}'. Run 'connect' first.", container_name, network_name);
+    }
+
+    Ok(())
+}
