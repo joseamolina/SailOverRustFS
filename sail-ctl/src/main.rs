@@ -129,3 +129,27 @@ async fn sync_manifests() -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
+
+async fn check_status() -> Result<(), Box<dyn Error>> {
+    let docker = Docker::connect_with_local_defaults()?;
+    let k8s = Client::try_default().await?;
+
+    println!("--- Docker Status ---");
+    let version = docker.version().await?;
+    println!("Docker Version: {}", version.version.unwrap_or_else(|| "Unknown".to_string()));
+
+    let containers = docker.list_containers::<String>(None).await?;
+    println!("Running Containers: {}", containers.len());
+    for c in containers {
+        println!("  - {} ({})", c.names.unwrap_or_default().join(", "), c.image.unwrap_or_default());
+    }
+
+    println!("\n--- Kubernetes Status ---");
+    let namespaces: kube::api::Api<k8s_openapi::api::core::v1::Namespace> = kube::Api::all(k8s);
+    let lp = kube::api::ListParams::default();
+    let ns_list = namespaces.list(&lp).await?;
+    println!("Connected to K8s. Found {} namespaces.", ns_list.items.len());
+
+    Ok(())
+}
+
