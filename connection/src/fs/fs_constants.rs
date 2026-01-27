@@ -1,0 +1,14 @@
+pub const SIZE: &str = "size";
+pub const HUMAN_READABLE_SIZE: &str = "hrSize";
+pub const PATH: &str = "path";
+pub const IS_DIRECTORY: &str = "isDirectory";
+pub const IS_OTHER: &str = "isOther";lib + fs_connect
+pub const IS_REGULAR_FILE: &str = "isRegularFile";
+pub const IS_SYMBOLIC_LINK: &str = "isSymbolicLink";
+pub const PARTITION_FILES: &str = "partitionFiles";
+pub const PARTITIONS: &str = "partitions";
+pub const FORMAT: &str = "format";
+pub const CREATION_TIME: &str = "creationTime";
+pub const HUMAN_READABLE_CREATION_TIME: &str = "hrCreationTime";
+pub const LAST_MODIFIED: &str = "lastModified";
+pub const HUMAN_READABLE_LAST_MODIFIED: &str = "hrLastModified";
