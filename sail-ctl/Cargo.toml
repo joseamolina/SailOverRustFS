@@ -1,0 +1,15 @@
+[package]
+name = "sail-ctl"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bollard = "0.15"
+clap = { version = "4.5.54", features = ["derive"] }
+k8s-openapi = { version = "0.27.0", features = ["v1_31"] }
+kube = { version = "3.0.0", features = ["runtime", "derive"] }
+kube-derive = "3.0.0"
+regex = "1.12.2"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_yaml = "0.9.34"
+tokio = { version = "1.40", features = ["full"] }
